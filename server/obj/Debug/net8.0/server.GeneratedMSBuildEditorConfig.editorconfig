@@ -8,6 +8,6 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = server
-build_property.ProjectDir = C:\Users\joeyz\Documents\GitHub\Analyse_Netwerk_eindopdracht\server\
+build_property.ProjectDir = C:\Users\vandi\School coding folder\VisualStudioCode\GitHub Clones\Analyse_Netwerk_eindopdracht\server\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
