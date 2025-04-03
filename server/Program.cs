@@ -35,7 +35,7 @@ class ServerUDP
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
 
     // TODO: [Read the JSON file and return the list of DNSRecords]
-    static string dnsRecordsFile = @"../DNSrecords.json";  // Path to the DNS records JSON file
+    static string dnsRecordsFile = @"../server/DNSrecords.json";  // Path to the DNS records JSON file
     static List<DNSRecord> dnsRecords;
 
     public static void start()
