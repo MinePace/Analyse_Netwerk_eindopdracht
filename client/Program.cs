@@ -53,9 +53,9 @@ class ClientUDP
         {
             "www.outlook.com",
             "www.test.com",
-            "www.customdomain.com",
-            "hello.test.com",
-            "this.domain.does.not.exist"
+            "www.example.com",
+            "www.non-existent.com",
+            "www.mywebsite.com"
         };
 
         //TODO: [Create and send HELLO]
@@ -78,13 +78,13 @@ class ClientUDP
 
 
         foreach(string domain in domainsToLookUp)
-        {
+        {        
             // TODO: [Create and send DNSLookup Message]
             Message dnsLookupMsg = new Message
             {
                 MsgId = msgId++,
                 MsgType = MessageType.DNSLookup,
-                Content = domain
+                Content = new {Type="A", Name=domain}
             };
             
             SendMessage(clientSocket, (IPEndPoint)serverEndPoint, dnsLookupMsg);
@@ -107,7 +107,7 @@ class ClientUDP
             }
             else if (replyMSG.MsgType == MessageType.Error)
             {
-                System.Console.WriteLine($"Error looking up {domain}: {replyMSG.Content}");
+                System.Console.WriteLine($"[!] <!> [!]\nError looking up {domain}: {replyMSG.Content}\n[!] <!> [!]");
             }
             else
             {
