@@ -78,6 +78,7 @@ class ServerUDP
                 {
                     // TODO:[Query the DNSRecord in Json file]
                     string domain = receivedMessage.Content.ToString();
+                    Console.WriteLine($"Looking up domain: {domain}");
                     var dnsRecord = dnsRecords.FirstOrDefault(record => record.Name == domain);
 
                     Message replyMessage;
@@ -85,6 +86,7 @@ class ServerUDP
                     // TODO:[If found Send DNSLookupReply containing the DNSRecord]
                     if (dnsRecord != null)
                     {
+                        Console.WriteLine($"Domain found: {dnsRecord.Value}\n");
                         replyMessage = new Message
                         {
                             MsgId = receivedMessage.MsgId,
@@ -95,6 +97,7 @@ class ServerUDP
                     // TODO:[If not found Send Error]
                     else
                     {
+                        Console.WriteLine("No domain found\n");
                         replyMessage = new Message
                         {
                             MsgId = receivedMessage.MsgId,
