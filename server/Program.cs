@@ -41,7 +41,8 @@ class ServerUDP
     public static void start()
     {
 
-        LoadDNSRecords();     
+        LoadDNSRecords();
+        int count = 0;     
 
         // TODO: [Create a socket and endpoints and bind it to the server IP address and port number]
         IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
@@ -86,7 +87,7 @@ class ServerUDP
                     // TODO:[If found Send DNSLookupReply containing the DNSRecord]
                     if (dnsRecord != null)
                     {
-                        Console.WriteLine($"Domain found: {dnsRecord.Value}\n");
+                        Console.WriteLine($"Domain found: {dnsRecord.Value}");
                         replyMessage = new Message
                         {
                             MsgId = receivedMessage.MsgId,
@@ -107,20 +108,26 @@ class ServerUDP
                     }
 
                     SendMessage(serverSocket, clientEndPoint, replyMessage);
-
+                }
+                else if (receivedMessage.MsgType == MessageType.Ack)
+                {
                     // TODO:[Receive Ack about correct DNSLookupReply from the client]
-                    byte[] ackBuffer = new byte[1024];
-                    serverSocket.ReceiveFrom(ackBuffer, ref clientEndPoint);
+                    Console.WriteLine($"Received ACK from client: {Encoding.UTF8.GetString(buffer)}\n");
+                    count++;
                 }
 
                 // TODO:[If no further requests receieved send End to the client]
-                var endMessage = new Message
+                if (count == 5) 
                 {
-                    MsgId = 91377,
-                    MsgType = MessageType.End,
-                    Content = "End of DNSLookup"
-                };
-                SendMessage(serverSocket, clientEndPoint, endMessage);
+                    var endMessage = new Message
+                    {
+                        MsgId = 91377,
+                        MsgType = MessageType.End,
+                        Content = "End of DNSLookup"
+                    };
+                    SendMessage(serverSocket, clientEndPoint, endMessage);
+                    Console.WriteLine("Sent End message to client\n");
+                }
             }
         }
     }
