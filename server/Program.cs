@@ -127,6 +127,7 @@ class ServerUDP
                     };
                     SendMessage(serverSocket, clientEndPoint, endMessage);
                     Console.WriteLine("Sent End message to client\n");
+                    count = 0;
                 }
             }
         }

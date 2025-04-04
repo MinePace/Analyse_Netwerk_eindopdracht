@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
@@ -8,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using LibData;
+using Microsoft.Win32;
 
 // SendTo();
 class Program
@@ -28,47 +30,54 @@ public class Setting
 
 class ClientUDP
 {
+
     //TODO: [Deserialize Setting.json]
     static string configFile = @"../Setting.json";
     static string configContent = File.ReadAllText(configFile);
     static Setting? setting = JsonSerializer.Deserialize<Setting>(configContent);
 
+
     public static void start()
     {
+
         //TODO: [Create endpoints and socket]
-        IPEndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
         IPEndPoint clientEndPoint = new IPEndPoint(IPAddress.Parse(setting.ClientIPAddress), setting.ClientPortNumber);
         
-        UdpClient udpClient = new UdpClient(clientEndPoint);
+        Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        clientSocket.Bind(clientEndPoint);
         
-        // A list of domain names to look up (includes both valid and invalid ones)
-        List<string> domainsToLookup = new List<string>
+        EndPoint serverEndPoint = new IPEndPoint(IPAddress.Parse(setting.ServerIPAddress), setting.ServerPortNumber);
+        
+        
+        List<string> domainsToLookUp = new List<string>
         {
             "www.outlook.com",
             "www.test.com",
-            "www.nonexistent.com",  // This one should not exist in DNSrecords.json
-            "www.sample.com",
-            "example.com"  // For MX record
+            "www.customdomain.com",
+            "hello.test.com",
+            "this.domain.does.not.exist"
         };
 
         //TODO: [Create and send HELLO]
-        Message helloMsg = new Message
+
+        Message helloMSG = new Message
         {
             MsgId = 1,
             MsgType = MessageType.Hello,
-            Content = "Hello from Client"
+            Content = "HELO from Client"
         };
         
-        SendMessage(udpClient, serverEndPoint, helloMsg);
-        Console.WriteLine("Sent HELLO message to server");
-
+        SendMessage(clientSocket, (IPEndPoint)serverEndPoint, helloMSG);
+        System.Console.WriteLine("Sent HELLO message to Server");
         //TODO: [Receive and print Welcome from server]
-        Message welcomeMsg = ReceiveMessage(udpClient, ref serverEndPoint);
-        Console.WriteLine($"Received from server: {welcomeMsg.MsgType} with content: {welcomeMsg.Content}");
-        
-        int msgId = 2;  // Start with ID 2 since we already used 1 for HELLO
 
-        foreach (string domain in domainsToLookup)
+        Message welcomeMSG = ReceiveMessage(clientSocket, ref serverEndPoint);
+        System.Console.WriteLine($"Received from server: {welcomeMSG.MsgType} with content: {welcomeMSG.Content}");
+
+        int msgId = 2; // HELLO was al 1, dus nu starten we met 2.
+
+
+        foreach(string domain in domainsToLookUp)
         {
             // TODO: [Create and send DNSLookup Message]
             Message dnsLookupMsg = new Message
@@ -78,28 +87,34 @@ class ClientUDP
                 Content = domain
             };
             
-            SendMessage(udpClient, serverEndPoint, dnsLookupMsg);
-            Console.WriteLine($"Sent DNSLookup for domain: {domain}");
-            
+            SendMessage(clientSocket, (IPEndPoint)serverEndPoint, dnsLookupMsg);
+            System.Console.WriteLine($"\nSent DNSLookup for domain: {domain}");
+
+
+
             //TODO: [Receive and print DNSLookupReply from server]
-            Message replyMsg = ReceiveMessage(udpClient, ref serverEndPoint);
-            Console.WriteLine($"\nMESSAGE TYPE: {replyMsg.MsgType}\n\n");
-            if (replyMsg.MsgType == MessageType.DNSLookupReply)
+            Message replyMSG = ReceiveMessage(clientSocket, ref serverEndPoint);
+            
+            if (replyMSG.MsgType == MessageType.DNSLookupReply)
             {
-                string recordJson = JsonSerializer.Serialize(replyMsg.Content);
+                string recordJson = JsonSerializer.Serialize(replyMSG.Content);
                 DNSRecord? record = JsonSerializer.Deserialize<DNSRecord>(recordJson);
                 
-                Console.WriteLine($"Received DNSLookupReply for: {domain}");
-                Console.WriteLine($"Type: {record?.Type}, Name: {record?.Name}, Value: {record?.Value}, " +
+                System.Console.WriteLine($"Received DNSLookupReply for: {domain}");
+                System.Console.WriteLine($"Type: {record?.Type}, Name: {record?.Name}, Value: {record?.Value}, " +
                                  $"TTL: {record?.TTL}" + 
                                  (record?.Priority != null ? $", Priority: {record?.Priority}" : ""));
             }
-            else if (replyMsg.MsgType == MessageType.Error)
+            else if (replyMSG.MsgType == MessageType.Error)
             {
-                Console.WriteLine($"Error looking up {domain}: {replyMsg.Content}");
+                System.Console.WriteLine($"Error looking up {domain}: {replyMSG.Content}");
             }
-            
-            //TODO: [Send Acknowledgment to Server]
+            else
+            {
+                System.Console.WriteLine($"\n\n\n\n\n\n\nError. [I have no clue what happened or what I received, sorry :(]\n\n\n\n\n\n\n\n\n\n");
+            }
+
+        //TODO: [Send Acknowledgment to Server]
             Message ackMsg = new Message
             {
                 MsgId = msgId++,
@@ -107,31 +122,45 @@ class ClientUDP
                 Content = $"Received reply for {domain}"
             };
             
-            SendMessage(udpClient, serverEndPoint, ackMsg);
-            Console.WriteLine($"Sent acknowledgment for domain: {domain}\n\n---------------------------------------\n");
-        }
+            SendMessage(clientSocket, (IPEndPoint)serverEndPoint, ackMsg);
+            System.Console.WriteLine($"Sent acknowledgment for domain: {domain}\n");
         
+        
+        // TODO: [Send next DNSLookup to server]
+        // repeat the process until all DNSLoopkups (correct and incorrect onces) are sent to server and the replies with DNSLookupReply
+        }
+
         //TODO: [Receive and print End from server]
-        Message endMsg = ReceiveMessage(udpClient, ref serverEndPoint);
+        Message endMsg = ReceiveMessage(clientSocket, ref serverEndPoint);
         if (endMsg.MsgType == MessageType.End)
         {
-            Console.WriteLine($"\n\nReceived END message from server: {endMsg.Content}");
+            Console.WriteLine($"\n============================\nReceived END message from server: {endMsg.Content}\n============================\n\n");
         }
         
-        udpClient.Close();
+        clientSocket.Close();
+
+
+
+
     }
     
-    private static void SendMessage(UdpClient client, IPEndPoint endpoint, Message message)
-    {
-        string jsonMessage = JsonSerializer.Serialize(message);
-        byte[] bytes = Encoding.UTF8.GetBytes(jsonMessage);
-        client.Send(bytes, bytes.Length, endpoint);
-    }
     
-    private static Message ReceiveMessage(UdpClient client, ref IPEndPoint remoteEP)
+    
+    private static void SendMessage(Socket socket, IPEndPoint endPoint, Message message)
     {
-        byte[] receivedBytes = client.Receive(ref remoteEP);
-        string jsonMessage = Encoding.UTF8.GetString(receivedBytes);
-        return JsonSerializer.Deserialize<Message>(jsonMessage);
+        byte[] messageBytes = JsonSerializer.SerializeToUtf8Bytes(message);
+        socket.SendTo(messageBytes, endPoint);
+    }
+
+    
+    private static Message ReceiveMessage(Socket socket, ref EndPoint serverEndPoint)
+    {
+        byte[] buffer = new byte[1024];
+        
+        int receivedBytes = socket.ReceiveFrom(buffer, ref serverEndPoint);
+        string jsonString = Encoding.UTF8.GetString(buffer, 0, receivedBytes);
+        var receivedMessage = JsonSerializer.Deserialize<Message>(jsonString);
+
+        return receivedMessage;
     }
 }
