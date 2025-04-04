@@ -61,7 +61,7 @@ class ServerUDP
                 int receivedBytes = serverSocket.ReceiveFrom(buffer, ref clientEndPoint);
                 string jsonString = Encoding.UTF8.GetString(buffer, 0, receivedBytes);
                 var receivedMessage = JsonSerializer.Deserialize<Message>(jsonString);
-                Console.WriteLine($"Received from client: {receivedMessage.Content}");
+                Console.WriteLine($"Received from client: {Encoding.UTF8.GetString(buffer)}");
 
                 // Process the message
                 if (receivedMessage.MsgType == MessageType.Hello)
@@ -78,9 +78,13 @@ class ServerUDP
                 else if (receivedMessage.MsgType == MessageType.DNSLookup)
                 {
                     // TODO:[Query the DNSRecord in Json file]
-                    string domain = receivedMessage.Content.ToString();
+                    var dnsLookupContent = JsonSerializer.Deserialize<DNSLookupContent>(receivedMessage.Content.ToString());
+
+                    string domain = dnsLookupContent.Name;
+                    string type = dnsLookupContent.Type;
                     Console.WriteLine($"Looking up domain: {domain}");
-                    var dnsRecord = dnsRecords.FirstOrDefault(record => record.Name == domain);
+
+                    var dnsRecord = dnsRecords.Where(r => r.Name == domain).Where(r => r.Type == type).FirstOrDefault();
 
                     Message replyMessage;
 
@@ -98,7 +102,7 @@ class ServerUDP
                     // TODO:[If not found Send Error]
                     else
                     {
-                        Console.WriteLine("No domain found\n");
+                        Console.WriteLine("No domain found");
                         replyMessage = new Message
                         {
                             MsgId = receivedMessage.MsgId,
@@ -144,5 +148,11 @@ class ServerUDP
         // Read the DNS records from the JSON file and deserialize into a list of DNSRecord objects
         string dnsRecordsContent = File.ReadAllText(dnsRecordsFile);
         dnsRecords = JsonSerializer.Deserialize<List<DNSRecord>>(dnsRecordsContent);
+    }
+
+    public class DNSLookupContent
+    {
+        public string Type { get; set; }
+        public string Name { get; set; }
     }
 }
